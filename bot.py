@@ -4,8 +4,8 @@ import json
 import os
 
 # ================= CONFIG =================
-TOKEN = os.getenv("TOKEN")  # set in Railway
-ADMIN_IDS = [int(os.getenv("ADMIN_ID", "0"))]  # supports multiple admins
+TOKEN = os.getenv("TOKEN")
+ADMIN_IDS = [int(os.getenv("ADMIN_ID", "0"))]
 
 DATA_FILE = "data.json"
 user_state = {}
@@ -24,7 +24,7 @@ def save_data(data):
 data = load_data()
 
 # ================= MENU =================
-def main_menu(user_id=None):
+def main_menu(user_id):
     if user_id in ADMIN_IDS:
         return ReplyKeyboardMarkup([
             [KeyboardButton("🔍 Search Vehicle")],
@@ -38,11 +38,19 @@ def main_menu(user_id=None):
             [KeyboardButton("📩 Send Report")]
         ], resize_keyboard=True)
 
+def admin_menu():
+    return ReplyKeyboardMarkup([
+        [KeyboardButton("➕ Add Vehicle"), KeyboardButton("📥 Bulk Add")],
+        [KeyboardButton("❌ Delete Vehicle"), KeyboardButton("📋 View All")],
+        [KeyboardButton("⬅️ Back")]
+    ], resize_keyboard=True)
+
 # ================= START =================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
     await update.message.reply_text(
         "🚛 *Transport Management Bot*\n\nSelect option:",
-        reply_markup=main_menu(),
+        reply_markup=main_menu(user_id),
         parse_mode="Markdown"
     )
 
@@ -65,19 +73,20 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_state[user_id] = "search"
         return await update.message.reply_text("Enter vehicle number:")
 
-    elif text == "📊 Total Vehicles":
-        return await update.message.reply_text(f"📊 Total Vehicles: {len(data)}")
-
-    elif text == "📤 Export Data":
-    if user_id not in ADMIN_IDS:
-        return await update.message.reply_text("❌ Only admin can export data")
-
-    with open(DATA_FILE, "rb") as f:
-        return await update.message.reply_document(f)
-
     elif text == "📩 Send Report":
         user_state[user_id] = "report"
         return await update.message.reply_text("Write your report:")
+
+    elif text == "📊 Total Vehicles":
+        if user_id not in ADMIN_IDS:
+            return
+        return await update.message.reply_text(f"📊 Total Vehicles: {len(data)}")
+
+    elif text == "📤 Export Data":
+        if user_id not in ADMIN_IDS:
+            return await update.message.reply_text("❌ Only admin can export data")
+        with open(DATA_FILE, "rb") as f:
+            return await update.message.reply_document(f)
 
     elif text == "👑 Admin Panel":
         if user_id not in ADMIN_IDS:
@@ -86,7 +95,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif text == "⬅️ Back":
         user_state[user_id] = None
-        return await update.message.reply_text("Back to menu", reply_markup=main_menu())
+        return await update.message.reply_text("Back to menu", reply_markup=main_menu(user_id))
 
     # -------- ADMIN --------
     elif text == "➕ Add Vehicle":
@@ -176,7 +185,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # DEFAULT
     else:
-        await update.message.reply_text("Select option from menu", reply_markup=main_menu())
+        await update.message.reply_text("Select option from menu", reply_markup=main_menu(user_id))
 
 # ================= MAIN =================
 def main():
