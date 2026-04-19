@@ -24,20 +24,19 @@ def save_data(data):
 data = load_data()
 
 # ================= MENU =================
-def main_menu():
-    return ReplyKeyboardMarkup([
-        [KeyboardButton("🔍 Search Vehicle")],
-        [KeyboardButton("📊 Total Vehicles"), KeyboardButton("📤 Export Data")],
-        [KeyboardButton("📩 Send Report")],
-        [KeyboardButton("👑 Admin Panel")]
-    ], resize_keyboard=True)
-
-def admin_menu():
-    return ReplyKeyboardMarkup([
-        [KeyboardButton("➕ Add Vehicle"), KeyboardButton("📥 Bulk Add")],
-        [KeyboardButton("❌ Delete Vehicle"), KeyboardButton("📋 View All")],
-        [KeyboardButton("⬅️ Back")]
-    ], resize_keyboard=True)
+def main_menu(user_id=None):
+    if user_id in ADMIN_IDS:
+        return ReplyKeyboardMarkup([
+            [KeyboardButton("🔍 Search Vehicle")],
+            [KeyboardButton("📊 Total Vehicles"), KeyboardButton("📤 Export Data")],
+            [KeyboardButton("📩 Send Report")],
+            [KeyboardButton("👑 Admin Panel")]
+        ], resize_keyboard=True)
+    else:
+        return ReplyKeyboardMarkup([
+            [KeyboardButton("🔍 Search Vehicle")],
+            [KeyboardButton("📩 Send Report")]
+        ], resize_keyboard=True)
 
 # ================= START =================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
