@@ -3,11 +3,10 @@ from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, Con
 import json
 import os
 
-# ENV VARIABLES
 TOKEN = os.getenv("TOKEN")
 ADMIN_ID = int(os.getenv("ADMIN_ID"))
 
-# Load Data
+# Load / Save
 def load_data():
     try:
         with open("data.json", "r") as f:
@@ -22,7 +21,7 @@ def save_data(data):
 data = load_data()
 user_state = {}
 
-# MENUS
+# Menus
 def main_menu():
     return ReplyKeyboardMarkup([
         [KeyboardButton("🔍 Search Vehicle")],
@@ -36,78 +35,70 @@ def admin_menu():
         [KeyboardButton("⬅️ Back")]
     ], resize_keyboard=True)
 
-# START
+# Start
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("🚛 Transport Bot Started", reply_markup=main_menu())
+    await update.message.reply_text("🚛 Bot Started", reply_markup=main_menu())
 
-# SEARCH
+# Search
 def search_vehicle(query):
     query = query.upper()
     return [f"{n} → {o}" for n, o in data.items() if query in n]
 
-# HANDLE MESSAGE
+# Handler
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     text = update.message.text
 
-    # MENU
     if text == "🔍 Search Vehicle":
         user_state[user_id] = "search"
         return await update.message.reply_text("Enter vehicle number:")
 
     elif text == "📊 Total Vehicles":
-        return await update.message.reply_text(f"Total Vehicles: {len(data)}")
+        return await update.message.reply_text(f"Total: {len(data)}")
 
     elif text == "📩 Send Report":
         user_state[user_id] = "report"
-        return await update.message.reply_text("Write your report:")
+        return await update.message.reply_text("Send report:")
 
     elif text == "👑 Admin Panel":
         if user_id != ADMIN_ID:
             return await update.message.reply_text("❌ Not allowed")
         return await update.message.reply_text("Admin Panel", reply_markup=admin_menu())
 
-    elif text == "➕ Add Vehicle":
-        if user_id != ADMIN_ID:
-            return
+    elif text == "➕ Add Vehicle" and user_id == ADMIN_ID:
         user_state[user_id] = "add"
-        return await update.message.reply_text("Send like:\nCG04XX1234 OWNER NAME")
+        return await update.message.reply_text("Format:\nCG04XX1234 OWNER")
 
-    elif text == "❌ Delete Vehicle":
-        if user_id != ADMIN_ID:
-            return
+    elif text == "❌ Delete Vehicle" and user_id == ADMIN_ID:
         user_state[user_id] = "delete"
-        return await update.message.reply_text("Send vehicle number to delete:")
+        return await update.message.reply_text("Send vehicle number:")
 
     elif text == "⬅️ Back":
         user_state[user_id] = None
         return await update.message.reply_text("Back", reply_markup=main_menu())
 
-    # STATES
     state = user_state.get(user_id)
 
     if state == "search":
         results = search_vehicle(text)
         if not results:
-            return await update.message.reply_text("❌ No match found")
+            return await update.message.reply_text("❌ No match")
         return await update.message.reply_text("\n".join(results[:20]))
 
     elif state == "add" and user_id == ADMIN_ID:
         parts = text.split()
         if len(parts) < 2:
-            return await update.message.reply_text("❌ Format wrong")
+            return await update.message.reply_text("❌ Wrong format")
 
         vehicle = parts[0].upper()
         owner = " ".join(parts[1:])
-
         data[vehicle] = owner
         save_data(data)
 
-        return await update.message.reply_text("✅ Vehicle Added")
+        return await update.message.reply_text("✅ Added")
 
     elif state == "delete" and user_id == ADMIN_ID:
         vehicle = text.upper()
-
         if vehicle in data:
             del data[vehicle]
             save_data(data)
@@ -117,15 +108,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif state == "report":
         await context.bot.send_message(chat_id=ADMIN_ID, text=f"📩 Report:\n{text}")
-        return await update.message.reply_text("✅ Report sent")
+        return await update.message.reply_text("✅ Sent")
 
 # MAIN
 def main():
     app = ApplicationBuilder().token(TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
-
-    # FIXED LINE (IMPORTANT)
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
     print("Bot Running...")
