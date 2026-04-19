@@ -70,8 +70,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return await update.message.reply_text(f"📊 Total Vehicles: {len(data)}")
 
     elif text == "📤 Export Data":
-        with open(DATA_FILE, "rb") as f:
-            return await update.message.reply_document(f)
+    if user_id not in ADMIN_IDS:
+        return await update.message.reply_text("❌ Only admin can export data")
+
+    with open(DATA_FILE, "rb") as f:
+        return await update.message.reply_document(f)
 
     elif text == "📩 Send Report":
         user_state[user_id] = "report"
