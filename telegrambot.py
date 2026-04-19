@@ -3,7 +3,7 @@ from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, fil
 import json
 import os
 
-TOKEN = os.getenv("8452914839:AAETzJqHle8oQrZgwcOHvvNCQzWJ9m7KJmE")
+TOKEN = os.getenv("TOKEN")
 ADMIN_ID = int(os.getenv("ADMIN_ID"))
 
 # Load data
