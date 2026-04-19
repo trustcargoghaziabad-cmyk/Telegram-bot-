@@ -3,7 +3,7 @@ from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, Con
 import json
 import os
 
-# Use Railway ENV variables (IMPORTANT)
+# ENV VARIABLES
 TOKEN = os.getenv("TOKEN")
 ADMIN_ID = int(os.getenv("ADMIN_ID"))
 
@@ -22,7 +22,7 @@ def save_data(data):
 data = load_data()
 user_state = {}
 
-# Menus
+# MENUS
 def main_menu():
     return ReplyKeyboardMarkup([
         [KeyboardButton("🔍 Search Vehicle")],
@@ -36,21 +36,21 @@ def admin_menu():
         [KeyboardButton("⬅️ Back")]
     ], resize_keyboard=True)
 
-# Start Command
+# START
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("🚛 Transport Bot Started", reply_markup=main_menu())
 
-# Search Logic
+# SEARCH
 def search_vehicle(query):
     query = query.upper()
     return [f"{n} → {o}" for n, o in data.items() if query in n]
 
-# Message Handler
+# HANDLE MESSAGE
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     text = update.message.text
 
-    # MENU ACTIONS
+    # MENU
     if text == "🔍 Search Vehicle":
         user_state[user_id] = "search"
         return await update.message.reply_text("Enter vehicle number:")
@@ -119,11 +119,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await context.bot.send_message(chat_id=ADMIN_ID, text=f"📩 Report:\n{text}")
         return await update.message.reply_text("✅ Report sent")
 
-# MAIN FUNCTION
+# MAIN
 def main():
     app = ApplicationBuilder().token(TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
+
+    # FIXED LINE (IMPORTANT)
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
     print("Bot Running...")
