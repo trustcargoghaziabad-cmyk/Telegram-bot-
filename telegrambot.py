@@ -4,7 +4,7 @@ import json
 import os
 
 TOKEN = os.getenv("8452914839:AAETzJqHle8oQrZgwcOHvvNCQzWJ9m7KJmE")
-ADMIN_ID = int(os.getenv("7365748200"))
+ADMIN_ID = int(os.getenv("ADMIN_ID"))
 
 # Load data
 def load_data():
