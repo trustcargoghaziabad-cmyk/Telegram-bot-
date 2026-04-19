@@ -1,11 +1,13 @@
 from telegram import Update, ReplyKeyboardMarkup, KeyboardButton
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
 import json
+import os
 
-TOKEN = "YOUR_BOT_TOKEN"
-ADMIN_ID = 7365748200
+# Use Railway ENV variables (IMPORTANT)
+TOKEN = os.getenv("TOKEN")
+ADMIN_ID = int(os.getenv("ADMIN_ID"))
 
-# Load data
+# Load Data
 def load_data():
     try:
         with open("data.json", "r") as f:
@@ -34,110 +36,98 @@ def admin_menu():
         [KeyboardButton("⬅️ Back")]
     ], resize_keyboard=True)
 
-# Start command
+# Start Command
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("🚛 Transport Bot", reply_markup=main_menu())
+    await update.message.reply_text("🚛 Transport Bot Started", reply_markup=main_menu())
 
-# Search function
+# Search Logic
 def search_vehicle(query):
     query = query.upper()
     return [f"{n} → {o}" for n, o in data.items() if query in n]
 
-# Message handler
+# Message Handler
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     text = update.message.text
 
-    # Menu actions
+    # MENU ACTIONS
     if text == "🔍 Search Vehicle":
         user_state[user_id] = "search"
-        await update.message.reply_text("Enter vehicle number:")
-        return
+        return await update.message.reply_text("Enter vehicle number:")
 
     elif text == "📊 Total Vehicles":
-        await update.message.reply_text(f"Total Vehicles: {len(data)}")
-        return
+        return await update.message.reply_text(f"Total Vehicles: {len(data)}")
 
     elif text == "📩 Send Report":
         user_state[user_id] = "report"
-        await update.message.reply_text("Write your report:")
-        return
+        return await update.message.reply_text("Write your report:")
 
     elif text == "👑 Admin Panel":
         if user_id != ADMIN_ID:
-            await update.message.reply_text("❌ Not allowed")
-            return
-        await update.message.reply_text("Admin Panel", reply_markup=admin_menu())
-        return
+            return await update.message.reply_text("❌ Not allowed")
+        return await update.message.reply_text("Admin Panel", reply_markup=admin_menu())
 
     elif text == "➕ Add Vehicle":
         if user_id != ADMIN_ID:
-            await update.message.reply_text("❌ Not allowed")
             return
         user_state[user_id] = "add"
-        await update.message.reply_text("Send like:\nCG04JC4767 RAJESH ENTERPRISES")
-        return
+        return await update.message.reply_text("Send like:\nCG04XX1234 OWNER NAME")
 
     elif text == "❌ Delete Vehicle":
         if user_id != ADMIN_ID:
-            await update.message.reply_text("❌ Not allowed")
             return
         user_state[user_id] = "delete"
-        await update.message.reply_text("Send vehicle number:")
-        return
+        return await update.message.reply_text("Send vehicle number to delete:")
 
     elif text == "⬅️ Back":
         user_state[user_id] = None
-        await update.message.reply_text("Back to menu", reply_markup=main_menu())
-        return
+        return await update.message.reply_text("Back", reply_markup=main_menu())
 
-    # State-based actions
+    # STATES
     state = user_state.get(user_id)
 
     if state == "search":
         results = search_vehicle(text)
         if not results:
-            await update.message.reply_text("❌ No match found")
-            return
-        await update.message.reply_text("\n".join(results[:20]))
-        return
+            return await update.message.reply_text("❌ No match found")
+        return await update.message.reply_text("\n".join(results[:20]))
 
-    elif state == "add":
+    elif state == "add" and user_id == ADMIN_ID:
         parts = text.split()
         if len(parts) < 2:
-            await update.message.reply_text("❌ Wrong format")
-            return
-        data[parts[0].upper()] = " ".join(parts[1:])
-        save_data(data)
-        await update.message.reply_text("✅ Vehicle Added")
-        return
+            return await update.message.reply_text("❌ Format wrong")
 
-    elif state == "delete":
-        num = text.upper()
-        if num in data:
-            del data[num]
+        vehicle = parts[0].upper()
+        owner = " ".join(parts[1:])
+
+        data[vehicle] = owner
+        save_data(data)
+
+        return await update.message.reply_text("✅ Vehicle Added")
+
+    elif state == "delete" and user_id == ADMIN_ID:
+        vehicle = text.upper()
+
+        if vehicle in data:
+            del data[vehicle]
             save_data(data)
-            await update.message.reply_text("✅ Deleted")
-        else:
-            await update.message.reply_text("❌ Not found")
-        return
+            return await update.message.reply_text("✅ Deleted")
+
+        return await update.message.reply_text("❌ Not found")
 
     elif state == "report":
         await context.bot.send_message(chat_id=ADMIN_ID, text=f"📩 Report:\n{text}")
-        await update.message.reply_text("✅ Report sent")
-        return
+        return await update.message.reply_text("✅ Report sent")
 
-
-# Main function
+# MAIN FUNCTION
 def main():
     app = ApplicationBuilder().token(TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
-    print("Bot running...")
+    print("Bot Running...")
     app.run_polling()
-
 
 if __name__ == "__main__":
     main()
