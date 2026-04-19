@@ -6,7 +6,6 @@ from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, Con
 TOKEN = os.getenv("TOKEN")
 ADMIN_ID = int(os.getenv("ADMIN_ID", "0"))
 
-# Load Data
 def load_data():
     try:
         with open("data.json", "r") as f:
@@ -21,7 +20,6 @@ def save_data(data):
 data = load_data()
 user_state = {}
 
-# Menus
 def main_menu():
     return ReplyKeyboardMarkup([
         [KeyboardButton("🔍 Search Vehicle")],
@@ -35,16 +33,13 @@ def admin_menu():
         [KeyboardButton("⬅️ Back")]
     ], resize_keyboard=True)
 
-# Start
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("🚚 Bot Started", reply_markup=main_menu())
 
-# Search
 def search_vehicle(query):
     query = query.upper()
     return [f"{n} - {o}" for n, o in data.items() if query in n]
 
-# Message Handler
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     text = update.message.text
@@ -77,7 +72,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_state[user_id] = None
         return await update.message.reply_text("Back", reply_markup=main_menu())
 
-    # STATES
     state = user_state.get(user_id)
 
     if state == "search":
@@ -101,7 +95,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             return await update.message.reply_text("Not found")
 
-# MAIN
 def main():
     app = ApplicationBuilder().token(TOKEN).build()
 
