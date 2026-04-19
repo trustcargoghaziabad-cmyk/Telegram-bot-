@@ -1,7 +1,7 @@
 import os
 import json
 from telegram import Update, ReplyKeyboardMarkup, KeyboardButton
-from telegram.ext import Application, CommandHandler, MessageHandler, ContextTypes, filters
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
 
 TOKEN = os.getenv("TOKEN")
 ADMIN_ID = int(os.getenv("ADMIN_ID", "0"))
@@ -51,68 +51,59 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if text == "🔍 Search Vehicle":
         user_state[user_id] = "search"
-        await update.message.reply_text("Enter vehicle number:")
-        return
+        return await update.message.reply_text("Enter vehicle number:")
 
     elif text == "📊 Total Vehicles":
-        await update.message.reply_text(f"Total Vehicles: {len(data)}")
-        return
+        return await update.message.reply_text(f"Total Vehicles: {len(data)}")
 
     elif text == "📝 Send Report":
         user_state[user_id] = "report"
-        await update.message.reply_text("Write your report:")
-        return
+        return await update.message.reply_text("Write your report:")
 
     elif text == "👑 Admin Panel":
         if user_id != ADMIN_ID:
-            await update.message.reply_text("❌ Not allowed")
-            return
-        await update.message.reply_text("Admin Panel", reply_markup=admin_menu())
-        return
+            return await update.message.reply_text("❌ Not allowed")
+        return await update.message.reply_text("Admin Panel", reply_markup=admin_menu())
 
     elif text == "➕ Add Vehicle" and user_id == ADMIN_ID:
         user_state[user_id] = "add"
-        await update.message.reply_text("Send like:\nCG04XX1234 OWNER NAME")
-        return
+        return await update.message.reply_text("Send like:\nCG04XX1234 OWNER NAME")
 
     elif text == "❌ Delete Vehicle" and user_id == ADMIN_ID:
         user_state[user_id] = "delete"
-        await update.message.reply_text("Send vehicle number:")
-        return
+        return await update.message.reply_text("Send vehicle number:")
 
     elif text == "⬅️ Back":
         user_state[user_id] = None
-        await update.message.reply_text("Back", reply_markup=main_menu())
-        return
+        return await update.message.reply_text("Back", reply_markup=main_menu())
 
     # STATES
     state = user_state.get(user_id)
 
     if state == "search":
         results = search_vehicle(text)
-        await update.message.reply_text("\n".join(results) if results else "Not found")
+        return await update.message.reply_text("\n".join(results) if results else "Not found")
 
     elif state == "add" and user_id == ADMIN_ID:
         try:
             number, owner = text.split(" ", 1)
             data[number.upper()] = owner
             save_data(data)
-            await update.message.reply_text("✅ Added")
+            return await update.message.reply_text("✅ Added")
         except:
-            await update.message.reply_text("Invalid format")
+            return await update.message.reply_text("Invalid format")
 
     elif state == "delete" and user_id == ADMIN_ID:
         if text.upper() in data:
             del data[text.upper()]
             save_data(data)
-            await update.message.reply_text("❌ Deleted")
+            return await update.message.reply_text("❌ Deleted")
         else:
-            await update.message.reply_text("Not found")
-
+            return await update.message.reply_text("Not found")
 
 # MAIN
 def main():
-    app = Application.builder().token(TOKEN).build()
+    app = ApplicationBuilder().token(TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
