@@ -3,13 +3,14 @@ from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, fil
 import json
 import os
 
-TOKEN = os.getenv("TOKEN")
-ADMIN_ID = int(os.getenv("ADMIN_ID", "0"))
+# ================= CONFIG =================
+TOKEN = os.getenv("TOKEN")  # set in Railway
+ADMIN_IDS = [int(os.getenv("ADMIN_ID", "0"))]  # supports multiple admins
 
 DATA_FILE = "data.json"
 user_state = {}
 
-# ------------------ DATA ------------------
+# ================= DATA =================
 def load_data():
     if not os.path.exists(DATA_FILE):
         return {}
@@ -22,23 +23,23 @@ def save_data(data):
 
 data = load_data()
 
-# ------------------ MENUS ------------------
+# ================= MENU =================
 def main_menu():
     return ReplyKeyboardMarkup([
-        ["🔍 Search Vehicle"],
-        ["📊 Total Vehicles", "📤 Export Data"],
-        ["📩 Send Report"],
-        ["👑 Admin Panel"]
+        [KeyboardButton("🔍 Search Vehicle")],
+        [KeyboardButton("📊 Total Vehicles"), KeyboardButton("📤 Export Data")],
+        [KeyboardButton("📩 Send Report")],
+        [KeyboardButton("👑 Admin Panel")]
     ], resize_keyboard=True)
 
 def admin_menu():
     return ReplyKeyboardMarkup([
-        ["➕ Add Vehicle", "📥 Bulk Add"],
-        ["❌ Delete Vehicle", "📋 View All"],
-        ["⬅️ Back"]
+        [KeyboardButton("➕ Add Vehicle"), KeyboardButton("📥 Bulk Add")],
+        [KeyboardButton("❌ Delete Vehicle"), KeyboardButton("📋 View All")],
+        [KeyboardButton("⬅️ Back")]
     ], resize_keyboard=True)
 
-# ------------------ START ------------------
+# ================= START =================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "🚛 *Transport Management Bot*\n\nSelect option:",
@@ -46,23 +47,21 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode="Markdown"
     )
 
-# ------------------ SEARCH ------------------
+# ================= SEARCH =================
 def search_vehicle(query):
     query = query.upper()
     results = []
-
     for n, o in data.items():
         if query in n:
             results.append(f"✅ {n} → {o}")
+    return results
 
-    return [f"{i+1}. {res}" for i, res in enumerate(results)]
-
-# ------------------ HANDLER ------------------
+# ================= HANDLER =================
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     text = update.message.text.strip()
 
-    # MENU ACTIONS
+    # -------- MENU --------
     if text == "🔍 Search Vehicle":
         user_state[user_id] = "search"
         return await update.message.reply_text("Enter vehicle number:")
@@ -81,24 +80,24 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif text == "👑 Admin Panel":
         if user_id not in ADMIN_IDS:
             return await update.message.reply_text("❌ Not authorized")
-        return await update.message.reply_text("Admin Panel:", reply_markup=admin_menu())
+        return await update.message.reply_text("👑 Admin Panel:", reply_markup=admin_menu())
 
     elif text == "⬅️ Back":
         user_state[user_id] = None
         return await update.message.reply_text("Back to menu", reply_markup=main_menu())
 
-    # ADMIN ACTIONS
+    # -------- ADMIN --------
     elif text == "➕ Add Vehicle":
         if user_id not in ADMIN_IDS:
             return
         user_state[user_id] = "add"
-        return await update.message.reply_text("Send:\nCG1234 OWNER NAME")
+        return await update.message.reply_text("Send: VEHICLE OWNER")
 
     elif text == "📥 Bulk Add":
         if user_id not in ADMIN_IDS:
             return
         user_state[user_id] = "bulk"
-        return await update.message.reply_text("Send multiple lines:\nCG1234 OWNER")
+        return await update.message.reply_text("Send multiple lines:\nCG1234 NAME")
 
     elif text == "❌ Delete Vehicle":
         if user_id not in ADMIN_IDS:
@@ -109,11 +108,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif text == "📋 View All":
         if user_id not in ADMIN_IDS:
             return
-
         msg = "\n".join([f"✅ {n} → {o}" for n, o in list(data.items())[:50]])
         return await update.message.reply_text(msg if msg else "No data")
 
-    # ---------------- STATES ----------------
+    # -------- STATES --------
     state = user_state.get(user_id)
 
     # SEARCH
@@ -127,27 +125,22 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif state == "add":
         if user_id not in ADMIN_IDS:
             return
-
         try:
             parts = text.split()
             number = parts[0].upper()
             owner = " ".join(parts[1:])
-
             data[number] = owner
             save_data(data)
-
             return await update.message.reply_text(f"✅ Added {number}")
         except:
-            return await update.message.reply_text("Format: CG1234 OWNER")
+            return await update.message.reply_text("Format: CG1234 NAME")
 
     # BULK ADD
     elif state == "bulk":
         if user_id not in ADMIN_IDS:
             return
-
-        lines = text.split("\n")
         count = 0
-
+        lines = text.split("\n")
         for line in lines:
             parts = line.strip().split()
             if len(parts) >= 2:
@@ -155,17 +148,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 owner = " ".join(parts[1:])
                 data[number] = owner
                 count += 1
-
         save_data(data)
-        return await update.message.reply_text(f"✅ Bulk added {count} vehicles")
+        return await update.message.reply_text(f"✅ Added {count} vehicles")
 
     # DELETE
     elif state == "delete":
         if user_id not in ADMIN_IDS:
             return
-
         number = text.upper()
-
         if number in data:
             del data[number]
             save_data(data)
@@ -175,17 +165,18 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # REPORT
     elif state == "report":
-        report = f"📩 Report from {update.effective_user.first_name}:\n{text}"
         for admin in ADMIN_IDS:
-            await context.bot.send_message(chat_id=admin, text=report)
-
+            await context.bot.send_message(
+                chat_id=admin,
+                text=f"📩 REPORT from {update.effective_user.first_name}:\n{text}"
+            )
         return await update.message.reply_text("✅ Report sent")
 
     # DEFAULT
     else:
-        return await update.message.reply_text("Choose from menu", reply_markup=main_menu())
+        await update.message.reply_text("Select option from menu", reply_markup=main_menu())
 
-# ------------------ MAIN ------------------
+# ================= MAIN =================
 def main():
     app = ApplicationBuilder().token(TOKEN).build()
 
